@@ -2,53 +2,79 @@ import mediapipe as mp
 import cv2
 import numpy as np
 
+
 def sobel_filter(gray):
     gray_x = cv2.Sobel(gray, cv2.CV_32F, 1, 0, ksize=3)
     gray_y = cv2.Sobel(gray, cv2.CV_32F, 0, 1, ksize=3)
     return np.sqrt(np.square(gray_x) + np.square(gray_y)).astype(np.uint8)
 
-if __name__ == "__main__":
-    org_img = cv2.imread(r"media\myLeftHand.jpg")
-    org_img_h,org_img_w,_ = org_img.shape
-    # cv2.imshow("org_img",org_img)
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
 
+def crop_palm_img(img):
     mp_hands = mp.solutions.hands
     with mp_hands.Hands(static_image_mode=True,
-        max_num_hands=1, # 検出する手の数（最大2まで）
-        min_detection_confidence=0.5) as hands:
-        results = hands.process(org_img)
+                        max_num_hands=1,  # 検出する手の数（最大2まで）
+                        min_detection_confidence=0.5) as hands:
+        results = hands.process(img)
     landmarks = results.multi_hand_landmarks[0]
-    palm_landmark_index = [0,1,2,5,9,13,17]
+    palm_landmark_index = [0, 1, 2, 5, 9, 13, 17]
     palm_landmark_points = []
+    # copy_img = img.copy()
+    img_h, img_w, _ = img.shape
     for i in palm_landmark_index:
         landmark = landmarks.landmark[i]
-        palm_landmark_points.append([landmark.x,landmark.y,landmark.z])
-    palm_landmark_points = np.array(palm_landmark_points)
-    palm_img_rect = [
-        np.min(palm_landmark_points[:,0])*org_img_w,
-        np.min(palm_landmark_points[:,1])*org_img_h,
-        np.max(palm_landmark_points[:,0])*org_img_w,
-        np.max(palm_landmark_points[:,1])*org_img_h,
-    ]
-    palm_img_rect = np.array(palm_img_rect).astype(int)
-    xmin,ymin,xmax,ymax = palm_img_rect
-    margin = 0
-    xmin = np.clip(xmin-margin, 0, org_img_w)
-    xmax = np.clip(xmax+margin, 0, org_img_w)
-    ymin = np.clip(ymin-margin, 0, org_img_h)
-    ymax = np.clip(ymax+margin, 0, org_img_h)
-    print(palm_img_rect)
-    palm_org_img = org_img[ymin:ymax,xmin:xmax,:]
-    # palm_nlm_img = cv2.fastNlMeansDenoisingColored(palm_org_img,None,10,10,7,21)
+        palm_landmark_points.append([landmark.x, landmark.y, landmark.z])
+        # copy_img = cv2.circle(copy_img,(int(landmark.x*img_w),int(landmark.y*img_h)),10,(255,0,0),-1)
 
-    gray = cv2.cvtColor(palm_org_img,cv2.COLOR_BGR2GRAY)
-    sobel_img = sobel_filter(gray)
-    # nlm_sobel_img = sobel_filter(cv2.cvtColor(palm_nlm_img,cv2.COLOR_BGR2GRAY))
-    cv2.imshow("sobel_img",sobel_img)
-    # cv2.imshow("nlm_sobel_img",nlm_sobel_img)
-    cv2.imshow("palm_org_img",palm_org_img)
-    # cv2.imshow("palm_nlm_img",palm_nlm_img)
+    palm_landmark_points = np.array(palm_landmark_points)
+    # print(palm_landmark_points)
+
+    # _palm_landmark_points = np.copy(palm_landmark_points)
+    palm_landmark_points[:, 0] *= img_w
+    palm_landmark_points[:, 1] *= img_h
+    # copy_img = cv2.drawContours(copy_img, _palm_landmark_points[:,[0,1]].reshape((1,-1,2)).astype(np.float32), -1, color=(0, 0, 255), thickness=2)
+    rect = cv2.minAreaRect(palm_landmark_points[:, [0, 1]].reshape(
+        (1, -1, 2)).astype(np.float32))
+    box = cv2.boxPoints(rect)
+    box = np.int0(box)
+    # copy_img = cv2.drawContours(copy_img,[box],0,(0,0,255),2)
+    # cv2.imshow("palm landmark",cv2.resize(copy_img,(400,400)))
+    palm_img_size = (500, 500)
+    original_points = box.astype(np.float32)
+    original_points = original_points[[1, 2, 3, 0]]
+    margin = 100
+    transform_points = np.array([
+        [margin, margin],
+        [palm_img_size[0]-margin, margin],
+        [palm_img_size[0]-margin, palm_img_size[1]-margin],
+        [margin, palm_img_size[1]-margin],
+    ], np.float32)
+    M = cv2.getPerspectiveTransform(original_points, transform_points)
+    palm_img = cv2.warpPerspective(img, M, palm_img_size)
+    return palm_img
+
+
+if __name__ == "__main__":
+    org_img = cv2.imread(r"media\myLeftHand.jpg")
+
+    palm_org_img = crop_palm_img(org_img)
+    cv2.imshow("palm_org_img", palm_org_img)
+
+    palm_gray = cv2.cvtColor(palm_org_img, cv2.COLOR_BGR2GRAY)
+    palm_gray = dst = cv2.equalizeHist(palm_gray)
+    cv2.imshow("palm_gray", palm_gray)
+
+    sobel_img = sobel_filter(palm_gray)
+    cv2.imshow("sobel_img", sobel_img)
+
+    palm_sobel_nlm_img = cv2.fastNlMeansDenoising(sobel_img, None, 10)
+    cv2.imshow("palm_sobel_nlm_img", palm_sobel_nlm_img)
+
+    th = 60
+    # th,palm_sobel_nlm_th_img = cv2.threshold(palm_sobel_nlm_img, th, 255, cv2.THRESH_BINARY)
+    th, palm_sobel_nlm_th_img = cv2.threshold(
+        palm_sobel_nlm_img, 0, 255, cv2.THRESH_OTSU)
+    print(th)
+    cv2.imshow("palm_sobel_nlm_th_img", palm_sobel_nlm_th_img)
+
     cv2.waitKey(0)
     cv2.destroyAllWindows()
