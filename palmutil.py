@@ -12,7 +12,7 @@ def sobel_filter(gray):
 def crop_palm_img(img):
     mp_hands = mp.solutions.hands
     with mp_hands.Hands(static_image_mode=True,
-                        max_num_hands=1,  # 検出する手の数（最大2まで）
+                        max_num_hands=1,
                         min_detection_confidence=0.5) as hands:
         results = hands.process(img)
     landmarks = results.multi_hand_landmarks[0]
@@ -56,25 +56,52 @@ def crop_palm_img(img):
 if __name__ == "__main__":
     org_img = cv2.imread(r"media\myLeftHand.jpg")
 
+    # crop palm
     palm_org_img = crop_palm_img(org_img)
     cv2.imshow("palm_org_img", palm_org_img)
 
+    # gray
     palm_gray = cv2.cvtColor(palm_org_img, cv2.COLOR_BGR2GRAY)
-    palm_gray = dst = cv2.equalizeHist(palm_gray)
+    palm_gray = cv2.equalizeHist(palm_gray)
     cv2.imshow("palm_gray", palm_gray)
 
+    # sobel
     sobel_img = sobel_filter(palm_gray)
+    # sobel_img = cv2.equalizeHist(sobel_img)
     cv2.imshow("sobel_img", sobel_img)
 
-    palm_sobel_nlm_img = cv2.fastNlMeansDenoising(sobel_img, None, 10)
+    # nlm
+    palm_sobel_nlm_img = cv2.fastNlMeansDenoising(sobel_img, None, 20, 10, 7)
     cv2.imshow("palm_sobel_nlm_img", palm_sobel_nlm_img)
 
-    th = 60
-    # th,palm_sobel_nlm_th_img = cv2.threshold(palm_sobel_nlm_img, th, 255, cv2.THRESH_BINARY)
+    # threshold
+    th = 95
     th, palm_sobel_nlm_th_img = cv2.threshold(
-        palm_sobel_nlm_img, 0, 255, cv2.THRESH_OTSU)
+        palm_sobel_nlm_img, th, 255, cv2.THRESH_BINARY)
+    # th, palm_sobel_nlm_th_img = cv2.threshold(
+    #     palm_sobel_nlm_img, 0, 255, cv2.THRESH_OTSU)
     print(th)
     cv2.imshow("palm_sobel_nlm_th_img", palm_sobel_nlm_th_img)
+
+    # morphology
+    k = 3
+    # kernel = np.ones((k,k),np.uint8)
+    kernel = np.array([
+        [0, 1, 0],
+        [1, 1, 1],
+        [0, 1, 0],
+    ], np.uint8)
+    palm_sobel_nlm_th_morph_img = palm_sobel_nlm_th_img.copy()
+    palm_sobel_nlm_th_morph_img = cv2.morphologyEx(
+        palm_sobel_nlm_th_morph_img, cv2.MORPH_CLOSE, kernel)
+    # palm_sobel_nlm_th_morph_img = cv2.morphologyEx(
+    #     palm_sobel_nlm_th_morph_img, cv2.MORPH_OPEN, kernel)
+    # palm_sobel_nlm_th_morph_img = cv2.morphologyEx(palm_sobel_nlm_th_morph_img, cv2.MORPH_GRADIENT, kernel)
+    cv2.imshow("palm_sobel_nlm_th_morph_img", palm_sobel_nlm_th_morph_img)
+
+    # thinning
+    palm_sobel_nlm_th_morph_thinning_img = cv2.ximgproc.thinning(palm_sobel_nlm_th_morph_img, thinningType=cv2.ximgproc.THINNING_ZHANGSUEN)
+    cv2.imshow("palm_sobel_nlm_th_morph_thinning_img", palm_sobel_nlm_th_morph_thinning_img)
 
     cv2.waitKey(0)
     cv2.destroyAllWindows()
