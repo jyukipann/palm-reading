@@ -4,11 +4,12 @@ import numpy as np
 
 
 def sobel_filter(gray):
-    gray_x = cv2.Sobel(gray, cv2.CV_32F, 1, 0, ksize=3)
-    gray_y = cv2.Sobel(gray, cv2.CV_32F, 0, 1, ksize=3)
+    k = 3
+    gray_x = cv2.Sobel(gray, cv2.CV_32F, 1, 0, ksize=k)
+    gray_y = cv2.Sobel(gray, cv2.CV_32F, 0, 1, ksize=k)
     return np.sqrt(np.square(gray_x) + np.square(gray_y)).astype(np.uint8)
 
-
+# mediapipeにより、手のキーポイントを検出して手のひらのみの画像を出力する
 def crop_palm_img(img):
     mp_hands = mp.solutions.hands
     with mp_hands.Hands(static_image_mode=True,
@@ -32,8 +33,8 @@ def crop_palm_img(img):
     palm_landmark_points[:, 0] *= img_w
     palm_landmark_points[:, 1] *= img_h
     # copy_img = cv2.drawContours(copy_img, _palm_landmark_points[:,[0,1]].reshape((1,-1,2)).astype(np.float32), -1, color=(0, 0, 255), thickness=2)
-    rect = cv2.minAreaRect(palm_landmark_points[:, [0, 1]].reshape(
-        (1, -1, 2)).astype(np.float32))
+    rect = cv2.minAreaRect(
+        palm_landmark_points[:, [0, 1]].reshape((1, -1, 2)).astype(np.float32))
     box = cv2.boxPoints(rect)
     box = np.int0(box)
     # copy_img = cv2.drawContours(copy_img,[box],0,(0,0,255),2)
@@ -41,7 +42,7 @@ def crop_palm_img(img):
     palm_img_size = (500, 500)
     original_points = box.astype(np.float32)
     original_points = original_points[[1, 2, 3, 0]]
-    margin = 100
+    margin = int(sum(palm_img_size)/2)/10
     transform_points = np.array([
         [margin, margin],
         [palm_img_size[0]-margin, margin],
@@ -54,6 +55,7 @@ def crop_palm_img(img):
 
 
 if __name__ == "__main__":
+
     org_img = cv2.imread(r"media\myLeftHand.jpg")
 
     # crop palm
@@ -62,8 +64,9 @@ if __name__ == "__main__":
 
     # gray
     palm_gray = cv2.cvtColor(palm_org_img, cv2.COLOR_BGR2GRAY)
-    palm_gray = cv2.equalizeHist(palm_gray)
     cv2.imshow("palm_gray", palm_gray)
+    palm_gray = cv2.equalizeHist(palm_gray)
+    cv2.imshow("palm_gray_eq", palm_gray)
 
     # sobel
     sobel_img = sobel_filter(palm_gray)
