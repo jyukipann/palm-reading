@@ -1,3 +1,4 @@
+from tkinter.messagebox import NO
 import mediapipe as mp
 import cv2
 import numpy as np
@@ -53,6 +54,28 @@ def crop_palm_img(img):
     palm_img = cv2.warpPerspective(img, M, palm_img_size)
     return palm_img
 
+
+def palm_read(org_img_path):
+    kernel = np.array([
+        [0, 1, 0],
+        [1, 1, 1],
+        [0, 1, 0],
+    ], np.uint8)
+    org_img = cv2.imread(org_img_path)
+    if org_img is None:
+        return None,None
+    palm_org_img = crop_palm_img(org_img)
+
+    x = cv2.cvtColor(palm_org_img, cv2.COLOR_BGR2GRAY)
+    x = cv2.equalizeHist(x)
+    x = sobel_filter(x)
+    x = cv2.fastNlMeansDenoising(x, None, 20, 10, 7)
+    th, x = cv2.threshold(x, 0, 255, cv2.THRESH_OTSU)
+    x = cv2.morphologyEx(x, cv2.MORPH_CLOSE, kernel)
+    x = cv2.ximgproc.thinning(x, thinningType=cv2.ximgproc.THINNING_ZHANGSUEN)
+    x = cv2.cvtColor(x,cv2.COLOR_GRAY2BGR)
+    return palm_org_img,x
+    
 
 if __name__ == "__main__":
 
