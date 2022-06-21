@@ -64,7 +64,8 @@ def palm_read(org_img_path):
     org_img = cv2.imread(org_img_path)
     if org_img is None:
         return None,None
-    palm_org_img = crop_palm_img(org_img)
+    palm_org_img = cv2.resize(org_img,(500,500))
+    # palm_org_img = crop_palm_img(org_img)
 
     x = cv2.cvtColor(palm_org_img, cv2.COLOR_BGR2GRAY)
     x = cv2.equalizeHist(x)
@@ -78,10 +79,27 @@ def palm_read(org_img_path):
     return palm_org_img,x
     
 
+def _palm_read(org_img_path):
+    kernel = np.array([
+        [0, 1, 0],
+        [1, 1, 1],
+        [0, 1, 0],
+    ], np.uint8)
+    org_img = cv2.imread(org_img_path)
+    if org_img is None:
+        return None,None
+    palm_org_img = crop_palm_img(org_img)
+
+    x = cv2.cvtColor(palm_org_img, cv2.COLOR_BGR2GRAY)
+    x_dilate = cv2.dilate(x,kernel,iterations=5)
+    x = cv2.absdiff(x,x_dilate)
+    x = cv2.bitwise_not(x)
+    return palm_org_img,x
+
 if __name__ == "__main__":
 
     org_img = cv2.imread(r"media\myLeftHand.jpg")
-    org_img = cv2.imread(r"media\minamiLeftHand.jpg")
+    org_img = cv2.imread(r"media\myLeftHand.jpg")
 
     # crop palm
     palm_org_img = crop_palm_img(org_img)
