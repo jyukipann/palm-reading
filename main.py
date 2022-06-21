@@ -1,4 +1,3 @@
-from select import select
 import tkinter as tk
 from tkinter import filedialog
 import palmutil
@@ -37,6 +36,8 @@ class Application(tk.Frame):
         self.img_file_name = filedialog.askopenfilename(filetypes = typ)
         if self.img_file_name is not None:
             img = cv2.imread(self.img_file_name)
+            if img is None:
+                return
             img = cv2.cvtColor(img,cv2.COLOR_BGR2RGB)
             self.show_img(img)
 
@@ -75,8 +76,6 @@ class Application(tk.Frame):
         if not self.show_img(img):
             print("failed show img")
             return
-
-
 
 def main():
     win = tk.Tk()

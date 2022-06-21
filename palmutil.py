@@ -70,6 +70,7 @@ def palm_read(org_img_path):
     x = cv2.equalizeHist(x)
     x = sobel_filter(x)
     x = cv2.fastNlMeansDenoising(x, None, 20, 10, 7)
+    # x = cv2.equalizeHist(x)
     th, x = cv2.threshold(x, 0, 255, cv2.THRESH_OTSU)
     x = cv2.morphologyEx(x, cv2.MORPH_CLOSE, kernel)
     x = cv2.ximgproc.thinning(x, thinningType=cv2.ximgproc.THINNING_ZHANGSUEN)
@@ -80,6 +81,7 @@ def palm_read(org_img_path):
 if __name__ == "__main__":
 
     org_img = cv2.imread(r"media\myLeftHand.jpg")
+    org_img = cv2.imread(r"media\minamiLeftHand.jpg")
 
     # crop palm
     palm_org_img = crop_palm_img(org_img)
@@ -98,6 +100,7 @@ if __name__ == "__main__":
 
     # nlm
     palm_sobel_nlm_img = cv2.fastNlMeansDenoising(sobel_img, None, 20, 10, 7)
+    # palm_sobel_nlm_img = cv2.equalizeHist(palm_sobel_nlm_img)
     cv2.imshow("palm_sobel_nlm_img", palm_sobel_nlm_img)
 
     # threshold
@@ -118,6 +121,7 @@ if __name__ == "__main__":
         [0, 1, 0],
     ], np.uint8)
     palm_sobel_nlm_th_morph_img = palm_sobel_nlm_th_img.copy()
+    
     palm_sobel_nlm_th_morph_img = cv2.morphologyEx(
         palm_sobel_nlm_th_morph_img, cv2.MORPH_CLOSE, kernel)
     # palm_sobel_nlm_th_morph_img = cv2.morphologyEx(
